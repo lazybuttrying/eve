@@ -1,0 +1,64 @@
+# Alertmanager 없이도 http://localhost:9090/alerts 에서 Pending/Firing 상태를 볼 수 있습니다.
+# 지표 이름은 클라이언트 버전에 따라 바뀔 수 있으니, 처음 띄운 뒤
+#   curl -s localhost:6060/debug/metrics/prometheus | grep -E '^(chain_head|p2p_peers)'
+# 처럼 실제 이름을 확인하세요. (6060/5054는 컨테이너 안에서만 열려 있으므로 docker exec 로 확인. README 참고)
+groups:
+  - name: sepolia-node
+    rules:
+      - alert: TargetDown
+        expr: up == 0
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $labels.job }} 지표 수집 실패 (컨테이너 중단 또는 포트 문제)"
+
+      - alert: GethLowPeers
+        expr: p2p_peers < 5
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "geth 피어 수 {{ $value }} (5 미만이 5분 이상)"
+
+      - alert: LighthouseLowPeers
+        expr: libp2p_peers < 10
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "lighthouse 피어 수 {{ $value }} (10 미만이 5분 이상)"
+
+      - alert: GethHeadStalled
+        expr: changes(chain_head_block[5m]) == 0
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: "geth 최신 블록이 10분 가까이 올라가지 않음"
+
+      - alert: BeaconSlotLag
+        expr: (slotclock_present_slot - beacon_head_state_slot) > 8
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "lighthouse 헤드가 현재 슬롯보다 {{ $value }} 슬롯 뒤처짐"
+
+      - alert: DiskUsageHigh
+        expr: |
+          (1 - node_filesystem_avail_bytes{mountpoint="/host",fstype!~"tmpfs|overlay"}
+               / node_filesystem_size_bytes{mountpoint="/host",fstype!~"tmpfs|overlay"}) * 100 > 80
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "루트 디스크 사용률 {{ $value | printf \"%.1f\" }}%"
+
+      - alert: DiskWillFillIn3Days
+        expr: predict_linear(node_filesystem_avail_bytes{mountpoint="/host",fstype!~"tmpfs|overlay"}[6h], 3 * 86400) < 0
+        for: 30m
+        labels: { severity: warning }
+        annotations:
+          summary: "현재 증가 속도면 3일 안에 디스크가 가득 참"
+
+      - alert: MemoryHigh
+        expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 > 90
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "메모리 사용률 {{ $value | printf \"%.1f\" }}%"

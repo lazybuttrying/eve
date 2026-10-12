@@ -1,0 +1,24 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+scrape_configs:
+  - job_name: geth
+    metrics_path: /debug/metrics/prometheus
+    static_configs:
+      - targets: ["geth:6060"]
+
+  - job_name: lighthouse
+    static_configs:
+      - targets: ["lighthouse:5054"]
+
+  - job_name: node
+    static_configs:
+      - targets: ["node-exporter:9100"]
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

@@ -1,0 +1,119 @@
+# Sepolia 노드 + 모니터링 한 번에 띄우기
+#   geth (실행 클라이언트) <-- JWT 인증 Engine API --> lighthouse (합의 클라이언트)
+#   prometheus 가 세 곳(geth, lighthouse, node-exporter)에서 지표를 긁고 grafana 가 보여 줍니다.
+#
+# 외부(인터넷)에 여는 포트는 P2P 포트(30303, 9000)뿐입니다.
+# RPC·지표·대시보드 포트는 127.0.0.1 에만 묶어 같은 기기에서만 접근되게 했습니다.
+
+services:
+  geth:
+    image: ${GETH_IMAGE:-ethereum/client-go:stable}
+    container_name: geth
+    restart: unless-stopped
+    stop_grace_period: 3m          # 종료 시 DB를 안전하게 닫을 시간
+    command:
+      - --sepolia
+      - --datadir=/data
+      - --syncmode=snap
+      - --maxpeers=${GETH_MAXPEERS:-50}
+      - --port=30303
+      # 사용자용 JSON-RPC
+      - --http
+      - --http.addr=0.0.0.0
+      - --http.port=8545
+      - --http.api=eth,net,web3,txpool
+      - --http.vhosts=*
+      # 합의 클라이언트 전용 Engine API (JWT 필수)
+      - --authrpc.addr=0.0.0.0
+      - --authrpc.port=8551
+      - --authrpc.vhosts=*
+      - --authrpc.jwtsecret=/secrets/jwt.hex
+      # Prometheus 지표 (경로: /debug/metrics/prometheus)
+      - --metrics
+      - --metrics.addr=0.0.0.0
+      - --metrics.port=6060
+    ports:
+      - "30303:30303/tcp"
+      - "30303:30303/udp"
+      - "127.0.0.1:8545:8545"
+    volumes:
+      - ${DATA_DIR:-./data}/geth:/data
+      - ./jwt:/secrets:ro
+    logging: &default-logging
+      driver: json-file
+      options: { max-size: "50m", max-file: "5" }
+
+  lighthouse:
+    image: ${LIGHTHOUSE_IMAGE:-sigp/lighthouse:latest}
+    container_name: lighthouse
+    restart: unless-stopped
+    depends_on: [geth]
+    command:
+      - lighthouse
+      - bn
+      - --network=sepolia
+      - --datadir=/data
+      - --execution-endpoint=http://geth:8551
+      - --execution-jwt=/secrets/jwt.hex
+      - --checkpoint-sync-url=${CHECKPOINT_SYNC_URL:-https://checkpoint-sync.sepolia.ethpandaops.io}
+      - --target-peers=${LH_TARGET_PEERS:-100}
+      - --port=9000
+      - --http
+      - --http-address=0.0.0.0
+      - --http-port=5052
+      - --metrics
+      - --metrics-address=0.0.0.0
+      - --metrics-port=5054
+    ports:
+      - "9000:9000/tcp"
+      - "9000:9000/udp"
+      - "9001:9001/udp"     # QUIC (Lighthouse 기본값: --port + 1)
+      - "127.0.0.1:5052:5052"
+    volumes:
+      - ${DATA_DIR:-./data}/lighthouse:/data
+      - ./jwt:/secrets:ro
+    logging: *default-logging
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: node-exporter
+    restart: unless-stopped
+    command:
+      - --path.rootfs=/host
+    pid: host
+    volumes:
+      - /:/host:ro,rslave
+    logging: *default-logging
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./prometheus:/etc/prometheus:ro
+      - ${DATA_DIR:-./data}/prometheus:/prometheus
+    user: "0"
+    logging: *default-logging
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: grafana
+    restart: unless-stopped
+    depends_on: [prometheus]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-change-me}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/etc/grafana/dashboards:ro
+      - ${DATA_DIR:-./data}/grafana:/var/lib/grafana
+    user: "0"
+    logging: *default-logging
