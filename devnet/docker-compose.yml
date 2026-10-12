@@ -1,0 +1,301 @@
+# 로컬 개발 네트워크 (사설 PoS 테스트넷)
+#   genesis → keys → geth-init 순서로 한 번만 준비 작업을 하고, 이후 geth / lighthouse / validator 가 계속 돕니다.
+#   모니터링(prometheus, grafana, node-exporter)은 ../sepolia-node 의 설정 파일을 그대로 씁니다.
+#
+# 디스크: 체인 데이터는 하루 몇백 MB 수준에서 시작합니다. 실제 증가량은 직접 재서 기록하세요.
+
+x-logging: &default-logging
+  driver: json-file
+  options: { max-size: "50m", max-file: "5" }
+
+x-mnemonic: &mnemonic "sleep moment list remain like wall lake industry canvas wonder ecology elite duck salad naive syrup frame brass utility club odor country obey pudding"
+
+services:
+  # 1) EL genesis.json, CL genesis.ssz / config.yaml, JWT 비밀키 생성 (이미 있으면 건너뜀)
+  genesis:
+    image: ethpandaops/ethereum-genesis-generator:6.2.4
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        if [ -f /data/metadata/genesis.ssz ]; then echo "genesis 가 이미 있습니다. 건너뜁니다."; exit 0; fi
+        export GENESIS_TIMESTAMP=$$(date +%s)
+        exec /work/entrypoint.sh all
+    volumes:
+      - ./data/genesis:/data
+      - ./values.env:/config/values.env:ro
+
+  # 2) 검증자 키 64개 생성 (개발용 공개 니모닉, 실제 자산에 절대 쓰지 말 것)
+  keys:
+    image: protolambda/eth2-val-tools:latest
+    entrypoint: ["sh", "-c"]
+    environment:
+      MNEMONIC: *mnemonic
+    command:
+      - |
+        if [ -d /out/keys/keys ]; then echo "검증자 키가 이미 있습니다. 건너뜁니다."; exit 0; fi
+        exec /app/eth2-val-tools keystores --insecure --source-mnemonic "$$MNEMONIC" \
+          --source-min 0 --source-max 64 --out-loc /out/keys
+    volumes:
+      - ./data/validator-keys:/out
+
+  # 3) geth 데이터 디렉터리를 genesis.json 으로 초기화 (이미 했으면 건너뜀)
+  geth-init:
+    image: ${GETH_IMAGE:-ethereum/client-go:v1.17.8}
+    depends_on:
+      genesis: { condition: service_completed_successfully }
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        if [ -d /data/geth/chaindata ]; then echo "geth 가 이미 초기화돼 있습니다. 건너뜁니다."; exit 0; fi
+        exec geth init --state.scheme=path --datadir=/data /genesis/metadata/genesis.json
+    volumes:
+      - ./data/geth:/data
+      - ./data/genesis:/genesis:ro
+
+  geth:
+    image: ${GETH_IMAGE:-ethereum/client-go:v1.17.8}
+    container_name: geth
+    restart: unless-stopped
+    stop_grace_period: 1m
+    depends_on:
+      geth-init: { condition: service_completed_successfully }
+    command:
+      - --networkid=3151908
+      - --datadir=/data
+      - --state.scheme=path
+      - --syncmode=full
+      - --maxpeers=${GETH_MAXPEERS:-10}
+      - --nodekeyhex=${GETH_NODEKEY:-b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291}
+      - --http
+      - --http.addr=0.0.0.0
+      - --http.port=8545
+      - --http.api=eth,net,web3,txpool,admin
+      - --http.vhosts=*
+      - --authrpc.addr=0.0.0.0
+      - --authrpc.port=8551
+      - --authrpc.vhosts=*
+      - --authrpc.jwtsecret=/genesis/jwt/jwtsecret
+      - --metrics
+      - --metrics.addr=0.0.0.0
+      - --metrics.port=6060
+    ports:
+      - "127.0.0.1:8545:8545"
+    volumes:
+      - ./data/geth:/data
+      - ./data/genesis:/genesis:ro
+    logging: *default-logging
+
+  lighthouse:
+    image: ${LIGHTHOUSE_IMAGE:-sigp/lighthouse:v8.2.3}
+    container_name: lighthouse
+    restart: unless-stopped
+    depends_on: [geth]
+    command:
+      - lighthouse
+      - bn
+      - --testnet-dir=/genesis/metadata
+      - --datadir=/data
+      - --execution-endpoint=http://geth:8551
+      - --execution-jwt=/genesis/jwt/jwtsecret
+      - --enable-private-discovery
+      - --disable-peer-scoring
+      - --disable-packet-filter
+      - --subscribe-all-subnets
+      - --supernode
+      - --target-peers=${LH_TARGET_PEERS:-10}
+      - --enr-address=lighthouse
+      - --port=9000
+      - --http
+      - --http-address=0.0.0.0
+      - --http-port=5052
+      - --metrics
+      - --metrics-address=0.0.0.0
+      - --metrics-port=5054
+    ports:
+      - "127.0.0.1:5052:5052"
+    volumes:
+      - ./data/lighthouse:/data
+      - ./data/genesis:/genesis:ro
+    logging: *default-logging
+
+  validator:
+    image: ${LIGHTHOUSE_IMAGE:-sigp/lighthouse:v8.2.3}
+    container_name: validator
+    restart: unless-stopped
+    depends_on:
+      lighthouse: { condition: service_started }
+      keys: { condition: service_completed_successfully }
+    command:
+      - lighthouse
+      - vc
+      - --testnet-dir=/genesis/metadata
+      - --validators-dir=/keys/keys/keys   # 슬래싱 방지 DB도 여기에 생성됨
+      - --secrets-dir=/keys/keys/secrets
+      - --init-slashing-protection
+      - --beacon-nodes=http://lighthouse:5052
+      - --suggested-fee-recipient=0x8943545177806ED17B9F23F0a21ee5948eCaa776
+      - --metrics
+      - --metrics-address=0.0.0.0
+      - --metrics-port=5064
+    volumes:
+      - ./data/validator-keys:/keys
+      - ./data/genesis:/genesis:ro
+    logging: *default-logging
+
+  # ---------------------------------------------------------------------------
+  # 노드 2: 검증자 없이 노드 1을 따라가기만 하는 "팔로워" 노드.
+  # 피어 수 급감, 동기화 따라잡기 연습은 이 노드를 네트워크에서 떼었다 붙이며 합니다.
+  # ---------------------------------------------------------------------------
+  geth2-init:
+    image: ${GETH_IMAGE:-ethereum/client-go:v1.17.8}
+    depends_on:
+      genesis: { condition: service_completed_successfully }
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        if [ -d /data/geth/chaindata ]; then echo "geth2 가 이미 초기화돼 있습니다. 건너뜁니다."; exit 0; fi
+        exec geth init --state.scheme=path --datadir=/data /genesis/metadata/genesis.json
+    volumes:
+      - ./data/geth2:/data
+      - ./data/genesis:/genesis:ro
+
+  geth2:
+    image: ${GETH_IMAGE:-ethereum/client-go:v1.17.8}
+    container_name: geth2
+    networks: [default, node2-internal]
+    restart: unless-stopped
+    stop_grace_period: 1m
+    depends_on:
+      geth2-init: { condition: service_completed_successfully }
+      geth: { condition: service_started }
+    command:
+      - --networkid=3151908
+      - --datadir=/data
+      - --state.scheme=path
+      - --syncmode=full
+      - --maxpeers=${GETH_MAXPEERS:-10}
+      - --config=/config/geth2.toml        # 노드 1을 고정 피어(StaticNodes)로 지정
+      - --http
+      - --http.addr=0.0.0.0
+      - --http.port=8545
+      - --http.api=eth,net,web3,txpool,admin
+      - --http.vhosts=*
+      - --authrpc.addr=0.0.0.0
+      - --authrpc.port=8551
+      - --authrpc.vhosts=*
+      - --authrpc.jwtsecret=/genesis/jwt/jwtsecret
+      - --metrics
+      - --metrics.addr=0.0.0.0
+      - --metrics.port=6060
+    ports:
+      - "127.0.0.1:8546:8545"
+    volumes:
+      - ./geth2.toml:/config/geth2.toml:ro
+      - ./data/geth2:/data
+      - ./data/genesis:/genesis:ro
+    logging: *default-logging
+
+  # 노드 1 비콘 노드의 ENR(접속 주소)을 받아 파일로 남김. lighthouse 이미지에는 wget/curl 이 없어서 따로 둡니다.
+  enr-fetch:
+    image: ${GETH_IMAGE:-ethereum/client-go:v1.17.8}
+    depends_on: [lighthouse]
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        until wget -qO- http://lighthouse:5052/eth/v1/node/identity > /tmp/id.json 2>/dev/null; do
+          echo "lighthouse API 대기 중..."; sleep 2
+        done
+        sed -n 's/.*"enr":"\([^"]*\)".*/\1/p' /tmp/id.json > /shared/enr
+        echo "ENR: $$(cat /shared/enr)"
+    volumes:
+      - ./data/shared:/shared
+
+  lighthouse2:
+    image: ${LIGHTHOUSE_IMAGE:-sigp/lighthouse:v8.2.3}
+    container_name: lighthouse2
+    networks: [default, node2-internal]
+    restart: unless-stopped
+    depends_on:
+      geth2: { condition: service_started }
+      enr-fetch: { condition: service_completed_successfully }
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        exec lighthouse bn \
+          --testnet-dir=/genesis/metadata \
+          --datadir=/data \
+          --execution-endpoint=http://geth2:8551 \
+          --execution-jwt=/genesis/jwt/jwtsecret \
+          --boot-nodes="$$(cat /shared/enr)" \
+          --enable-private-discovery \
+          --disable-peer-scoring \
+          --disable-packet-filter \
+          --subscribe-all-subnets \
+          --supernode \
+          --target-peers=$${LH_TARGET_PEERS:-10} \
+          --enr-address=lighthouse2 \
+          --port=9000 \
+          --http --http-address=0.0.0.0 --http-port=5052 \
+          --metrics --metrics-address=0.0.0.0 --metrics-port=5054
+    environment:
+      LH_TARGET_PEERS: ${LH_TARGET_PEERS:-10}
+    ports:
+      - "127.0.0.1:5053:5052"
+    volumes:
+      - ./data/lighthouse2:/data
+      - ./data/genesis:/genesis:ro
+      - ./data/shared:/shared:ro
+    logging: *default-logging
+
+  # ---------------------------------------------------------------------------
+  # 모니터링: 알림 규칙, Grafana 대시보드는 ../sepolia-node 의 파일을 그대로 씁니다.
+  # ---------------------------------------------------------------------------
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: node-exporter
+    restart: unless-stopped
+    command: [--path.rootfs=/host]
+    pid: host
+    volumes:
+      - /:/host:ro
+    logging: *default-logging
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: prometheus
+    networks: [default, node2-internal]
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./alerts.yml:/etc/prometheus/alerts.yml:ro
+      - ./data/prometheus:/prometheus
+    user: "0"
+    logging: *default-logging
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: grafana
+    restart: unless-stopped
+    depends_on: [prometheus]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-change-me}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ../sepolia-node/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../sepolia-node/grafana/dashboards:/etc/grafana/dashboards:ro
+      - ./data/grafana:/var/lib/grafana
+    user: "0"
+    logging: *default-logging
+
+networks:
+  # 장애 연습용: 노드 2를 default 네트워크에서만 떼면(docker network disconnect) 피어는 끊기지만,
+  # geth2 <-> lighthouse2 연결과 Prometheus 수집은 이 네트워크로 계속 유지됩니다.
+  node2-internal:

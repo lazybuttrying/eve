@@ -54,7 +54,20 @@
         }
       ],
       "fieldConfig": {
-        "defaults": {},
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
         "overrides": []
       },
       "options": {}
@@ -82,12 +95,24 @@
           },
           "refId": "A",
           "expr": "chain_head_block",
-          "legendFormat": "block"
+          "legendFormat": "{{node}} block"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "none"
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
         },
         "overrides": []
       },
@@ -116,11 +141,24 @@
           },
           "refId": "A",
           "expr": "p2p_peers",
-          "legendFormat": "peers"
+          "legendFormat": "{{node}} peers"
         }
       ],
       "fieldConfig": {
-        "defaults": {},
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
         "overrides": []
       },
       "options": {}
@@ -147,12 +185,25 @@
             "uid": "prometheus"
           },
           "refId": "A",
-          "expr": "libp2p_peers",
-          "legendFormat": "peers"
+          "expr": "sum by (job, node) (sync_peers_per_status or (up{job=\"lighthouse\"} * 0))",
+          "legendFormat": "{{node}} peers"
         }
       ],
       "fieldConfig": {
-        "defaults": {},
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
         "overrides": []
       },
       "options": {}
@@ -193,7 +244,7 @@
           },
           "refId": "A",
           "expr": "chain_head_header - chain_head_block",
-          "legendFormat": "남은 블록"
+          "legendFormat": "{{node}} 남은 블록"
         }
       ],
       "fieldConfig": {
@@ -225,7 +276,7 @@
           },
           "refId": "A",
           "expr": "slotclock_present_slot - beacon_head_state_slot",
-          "legendFormat": "슬롯 지연"
+          "legendFormat": "{{node}} 슬롯 지연"
         }
       ],
       "fieldConfig": {
@@ -238,7 +289,7 @@
       "id": 9,
       "type": "timeseries",
       "title": "geth: 5분간 블록 증가량",
-      "description": "동기화가 끝난 뒤엔 약 25 (12초당 1블록). 0이면 멈춘 것입니다.",
+      "description": "동기화가 끝난 뒤엔 약 25 (12초당 1블록). 0이면 멈춘 것입니다. 블록 번호는 계속 오르는 카운터가 아니라 게이지라서 increase() 대신 delta()를 씁니다 (geth가 비정상 종료 후 블록을 되감으면 increase()는 큰 값으로 튐).",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -256,8 +307,8 @@
             "uid": "prometheus"
           },
           "refId": "A",
-          "expr": "increase(chain_head_block[5m])",
-          "legendFormat": "블록/5분"
+          "expr": "delta(chain_head_block[5m])",
+          "legendFormat": "{{node}} 블록/5분"
         }
       ],
       "fieldConfig": {
@@ -289,7 +340,7 @@
           },
           "refId": "A",
           "expr": "p2p_peers",
-          "legendFormat": "geth"
+          "legendFormat": "{{node}} geth"
         },
         {
           "datasource": {
@@ -297,8 +348,8 @@
             "uid": "prometheus"
           },
           "refId": "B",
-          "expr": "libp2p_peers",
-          "legendFormat": "lighthouse"
+          "expr": "sum by (job, node) (sync_peers_per_status or (up{job=\"lighthouse\"} * 0))",
+          "legendFormat": "{{node}} lighthouse"
         }
       ],
       "fieldConfig": {
@@ -342,7 +393,7 @@
             "uid": "prometheus"
           },
           "refId": "A",
-          "expr": "(1 - node_filesystem_avail_bytes{mountpoint=\"/host\",fstype!~\"tmpfs|overlay\"} / node_filesystem_size_bytes{mountpoint=\"/host\",fstype!~\"tmpfs|overlay\"}) * 100",
+          "expr": "(1 - node_filesystem_avail_bytes{mountpoint=\"/\",fstype!~\"tmpfs|overlay\"} / node_filesystem_size_bytes{mountpoint=\"/\",fstype!~\"tmpfs|overlay\"}) * 100",
           "legendFormat": "root"
         }
       ],
@@ -376,7 +427,7 @@
             "uid": "prometheus"
           },
           "refId": "A",
-          "expr": "node_filesystem_avail_bytes{mountpoint=\"/host\",fstype!~\"tmpfs|overlay\"}",
+          "expr": "node_filesystem_avail_bytes{mountpoint=\"/\",fstype!~\"tmpfs|overlay\"}",
           "legendFormat": "남은 용량"
         },
         {
@@ -385,7 +436,7 @@
             "uid": "prometheus"
           },
           "refId": "B",
-          "expr": "predict_linear(node_filesystem_avail_bytes{mountpoint=\"/host\",fstype!~\"tmpfs|overlay\"}[6h], 3*86400)",
+          "expr": "predict_linear(node_filesystem_avail_bytes{mountpoint=\"/\",fstype!~\"tmpfs|overlay\"}[6h], 3*86400)",
           "legendFormat": "3일 뒤 예측"
         }
       ],
@@ -531,7 +582,7 @@
           },
           "refId": "A",
           "expr": "process_resident_memory_bytes{job=\"lighthouse\"}",
-          "legendFormat": "lighthouse"
+          "legendFormat": "{{node}} lighthouse"
         },
         {
           "datasource": {
@@ -540,7 +591,7 @@
           },
           "refId": "B",
           "expr": "system_memory_used{job=\"geth\"}",
-          "legendFormat": "geth (Go heap 등)"
+          "legendFormat": "{{node}} geth (Go heap 등)"
         }
       ],
       "fieldConfig": {

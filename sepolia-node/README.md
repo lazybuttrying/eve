@@ -2,6 +2,8 @@
 
 이더리움 테스트넷 Sepolia의 풀 노드를 Docker Compose로 띄웁니다. 실행 클라이언트는 Geth, 합의 클라이언트는 Lighthouse입니다. Prometheus와 Grafana로 상태를 보고, 장애 연습 세 가지를 직접 해 본 뒤 기록으로 남기는 것까지가 목표입니다.
 
+> 디스크 여유가 1TB가 안 되면 먼저 [로컬 개발 네트워크(devnet)](../devnet/README.md)로 같은 연습을 하세요. 디스크를 1GB 안팎만 씁니다.
+
 | 문서 | 내용 |
 |---|---|
 | 이 README | 구성 이해, 준비물, 실행, 동기화 확인, 모니터링 |
@@ -258,10 +260,10 @@ free -h
 | 패널 | 지표 (PromQL) | 무엇을 보나 | 공고 항목 |
 |---|---|---|---|
 | 수집 대상 상태 | `up` | 어느 컨테이너가 죽었나 | 장애 감지 |
-| geth 최신 블록 / 5분 증가량 | `chain_head_block`, `increase(...[5m])` | 블록이 계속 올라가나 (정상: 5분에 약 25) | 응답 지연 |
+| geth 최신 블록 / 5분 증가량 | `chain_head_block`, `delta(...[5m])` | 블록이 계속 올라가나 (정상: 5분에 약 25) | 응답 지연 |
 | 헤더 - 블록 | `chain_head_header - chain_head_block` | 동기화 중 남은 양 | 응답 지연 |
 | 슬롯 지연 | `slotclock_present_slot - beacon_head_state_slot` | CL이 현재 시각을 따라가나 | 응답 지연 |
-| 피어 수 추이 | `p2p_peers`, `libp2p_peers` | 네트워크 고립 여부 | 장애 원인 좁히기 |
+| 피어 수 추이 | `p2p_peers`, `sum(sync_peers_per_status)` | 네트워크 고립 여부 | 장애 원인 좁히기 |
 | 디스크 사용률 / 3일 뒤 예측 | `node_filesystem_*`, `predict_linear` | 언제 가득 차나 | 리소스 급증 |
 | 메모리, CPU, 디스크 I/O | `node_memory_*`, `node_cpu_*`, `node_disk_*` | 동기화 구간의 자원 급증 | 리소스 급증 |
 
@@ -284,8 +286,10 @@ GethHeadStalled는 Geth 동기화 중에도 울릴 수 있습니다. 동기화�
 
 ```bash
 docker exec prometheus wget -qO- http://geth:6060/debug/metrics/prometheus | grep -E '^(chain_head|p2p_peers)'
-docker exec prometheus wget -qO- http://lighthouse:5054/metrics | grep -E '^(libp2p_peers|beacon_head_state_slot|slotclock_present_slot)'
+docker exec prometheus wget -qO- http://lighthouse:5054/metrics | grep -E '^(sync_peers_per_status|libp2p_peers|beacon_head_state_slot|slotclock_present_slot)'
 ```
+
+실제 사례: Lighthouse v8.2.3에서는 `libp2p_peers`가 피어가 붙어 있어도 0으로 나왔습니다(`curl localhost:5052/eth/v1/node/peer_count`는 1). 그래서 이 저장소는 Lighthouse 피어 수로 `sync_peers_per_status`의 합을 씁니다. 그런데 이 지표는 피어가 0이 되면 값이 0이 아니라 **줄 자체가 사라져서** 알림 조건 `< 1`이 영영 참이 되지 않았습니다. 그래서 `sum by (job, node) (sync_peers_per_status or (up{job="lighthouse"} * 0))`처럼 0을 채워 넣습니다. "지표가 없음"과 "지표가 0"은 다르다는 것, 알림은 장애 상황에서 실제로 울려 봐야 믿을 수 있다는 것이 이 연습의 교훈입니다. 버전을 올린 뒤에는 두 값을 다시 비교해 보세요.
 
 이렇게 고친 내용 자체가 "문제를 좁혀 본 경험"으로 기록할 거리입니다.
 

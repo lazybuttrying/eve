@@ -1,0 +1,68 @@
+# devnet 용 알림 규칙: ../sepolia-node/prometheus/alerts.yml 에서 피어 기준만 1로 낮춘 것 (노드가 2개뿐이라 정상일 때 피어가 1).
+# Alertmanager 없이도 http://localhost:9090/alerts 에서 Pending/Firing 상태를 볼 수 있습니다.
+# 지표 이름은 클라이언트 버전에 따라 바뀔 수 있으니, 처음 띄운 뒤
+#   docker exec prometheus wget -qO- http://geth:6060/debug/metrics/prometheus | grep -E '^(chain_head|p2p_peers)'
+# 처럼 실제 이름을 확인하세요. (README 참고)
+# Lighthouse v8.2.3 에서는 libp2p_peers 가 피어가 붙어 있어도 0으로 나와서(2026-10 devnet에서 확인),
+# 피어 수로 sync_peers_per_status 의 합을 씁니다. 이 지표는 피어가 0이면 줄 자체가 사라져서
+# 알림이 영영 안 울리므로, `or (up * 0)` 으로 0을 채워 넣습니다.
+groups:
+  - name: sepolia-node
+    rules:
+      - alert: TargetDown
+        expr: up == 0
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $labels.job }} 지표 수집 실패 (컨테이너 중단 또는 포트 문제)"
+
+      - alert: GethLowPeers
+        expr: p2p_peers < 1
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "geth 피어 수 {{ $value }} (1 미만이 5분 이상)"
+
+      - alert: LighthouseLowPeers
+        expr: sum by (job, node) (sync_peers_per_status or (up{job="lighthouse"} * 0)) < 1
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "lighthouse 피어 수 {{ $value }} (1 미만이 5분 이상)"
+
+      - alert: GethHeadStalled
+        expr: changes(chain_head_block[5m]) == 0
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: "geth 최신 블록이 10분 가까이 올라가지 않음"
+
+      - alert: BeaconSlotLag
+        expr: (slotclock_present_slot - beacon_head_state_slot) > 8
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "lighthouse 헤드가 현재 슬롯보다 {{ $value }} 슬롯 뒤처짐"
+
+      - alert: DiskUsageHigh
+        expr: |
+          (1 - node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}
+               / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}) * 100 > 80
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "루트 디스크 사용률 {{ $value | printf \"%.1f\" }}%"
+
+      - alert: DiskWillFillIn3Days
+        expr: predict_linear(node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}[6h], 3 * 86400) < 0
+        for: 30m
+        labels: { severity: warning }
+        annotations:
+          summary: "현재 증가 속도면 3일 안에 디스크가 가득 참"
+
+      - alert: MemoryHigh
+        expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 > 90
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "메모리 사용률 {{ $value | printf \"%.1f\" }}%"

@@ -39,13 +39,14 @@ docker compose logs -f --since 2m lighthouse     # 다른 터미널에서
 
 ```bash
 date '+%F %T'; docker kill geth          # SIGKILL: DB를 닫을 시간 없이 끝남
-sleep 120                                # 알림이 Firing 되는 것을 확인
+sleep 150                                # TargetDown 이 Firing 되는 것을 확인 (수집 15초 + for 1분)
 docker compose start geth
 docker compose logs -f --since 5m geth
 ```
 
 볼 것
 - 1-A보다 복구가 오래 걸리는가. Geth가 시작할 때 마지막 상태를 복구하는 로그가 보이는가
+- 다시 켠 뒤 geth 로그의 `Loaded most recent local block number=...`가 죽기 직전 블록보다 작은가. devnet 실측에서는 블록 100에서 kill 했더니 97로 돌아갔습니다(최근 블록 손실 후 피어에게서 다시 받음)
 - `restart: unless-stopped`인데 왜 자동으로 다시 안 떴는가 → `docker kill`은 "사용자가 멈춘 것"으로 취급되기 때문. 반대로 컨테이너 안에서 프로세스가 죽으면 자동 재시작됨. 이 차이를 직접 확인해 적어 두면 좋습니다.
 
 > 테스트넷이라 괜찮지만, 비정상 종료를 반복하면 DB가 손상될 수 있습니다. 한두 번만 하세요.
