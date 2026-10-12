@@ -1,0 +1,5 @@
+# Windows에서 clone 해도 스크립트와 설정이 LF 줄바꿈을 유지하도록 (CRLF면 bash 스크립트가 깨짐)
+*.sh   text eol=lf
+*.yml  text eol=lf
+*.json text eol=lf
+.env*  text eol=lf

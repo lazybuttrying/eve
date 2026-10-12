@@ -67,6 +67,7 @@ RPC와 대시보드는 같은 기기에서만 열리게 묶었습니다. 다른 
 ```
 sepolia-node/
 ├── docker-compose.yml        # 5개 서비스 정의
+├── docker-compose.desktop.yml # Docker Desktop(Windows/macOS)용 덮어쓰기
 ├── .env.example              # 이미지 태그, 데이터 경로, 연습용 값
 ├── prometheus/
 │   ├── prometheus.yml        # 수집 대상
@@ -95,7 +96,9 @@ sepolia-node/
 
 **공통**: Docker Engine과 Compose v2(`docker compose version`), `openssl`, `curl`, `python3`이 필요합니다.
 
-**WSL2 (Windows PC)**
+**Docker Desktop (Windows / macOS)** ← 이 경우 [Docker Desktop으로 실행하기](#docker-desktop으로-실행하기)를 먼저 읽으세요.
+
+**WSL2 (Windows PC, Docker Desktop 없이 WSL 안에 Docker Engine 설치)**
 - 데이터는 반드시 리눅스 쪽 경로(예: `~/sepolia-node/data`)에 두세요. `/mnt/c/...`에 두면 디스크 I/O가 크게 느려집니다.
 - WSL2 가상 디스크는 기본적으로 크기가 정해져 있습니다. `df -h ~`로 남은 용량을 먼저 확인하세요.
 - `%UserProfile%\.wslconfig`에서 메모리를 넉넉히 주세요. 예: `[wsl2]` 아래 `memory=12GB`.
@@ -139,6 +142,49 @@ docker compose stop          # geth는 stop_grace_period(3분) 동안 DB를 안�
 docker compose start
 docker compose down          # 컨테이너 삭제 (data/ 는 남음)
 ```
+
+### Docker Desktop으로 실행하기
+
+Docker Desktop은 PC 안에 작은 Linux VM을 만들고 그 안에서 컨테이너를 돌립니다. 그래서 리눅스 서버와 세 가지가 다릅니다.
+
+| 다른 점 | 영향 | 이 저장소의 대응 |
+|---|---|---|
+| 내 PC 폴더를 컨테이너에 붙이면 VM 경계를 넘어 읽고 씀 | 디스크 I/O가 크게 느려져 Geth 동기화가 끝나지 않을 수 있음 | `docker-compose.desktop.yml`이 체인 데이터를 Docker 볼륨(VM 안)에 저장 |
+| CPU, 메모리, 디스크가 Docker Desktop 설정값으로 제한됨 | 기본값으로는 메모리와 디스크가 모자람 | 아래 설정 변경 |
+| node-exporter가 보는 자원은 PC가 아니라 VM | 대시보드의 디스크·메모리는 "Docker가 쓸 수 있는 한도" 기준 | 오히려 실제로 가득 차는 곳이 VM 디스크라 알림 기준으로는 맞음. 기록할 때 이 점을 적어 두세요 |
+
+**1) Docker Desktop 설정 (Settings → Resources)**
+- Memory: 12GB 이상 (PC 메모리가 16GB면 12GB, 32GB면 16GB)
+- CPUs: 4 이상
+- Disk usage limit (또는 Virtual disk limit): 1TB 이상. 이 디스크가 들어 있는 드라이브(Windows는 보통 C:)에 실제로 그만큼 여유가 있는지 확인하세요.
+- Windows에서 WSL 2 백엔드를 쓰는 경우 메모리는 `%UserProfile%\.wslconfig`의 `memory=` 값으로 정해집니다.
+- Settings → General → "Start Docker Desktop when you sign in" 켜기
+- PC 절전 모드 끄기 (절전에 들어가면 노드도 멈춤)
+
+**2) 터미널**
+- Windows: Docker Desktop의 WSL 통합(Settings → Resources → WSL integration)을 켜고 **Ubuntu(WSL) 터미널**에서 명령을 실행하세요. `scripts/*.sh`는 bash, curl, python3가 필요해서 PowerShell에서는 돌지 않습니다. 저장소도 WSL 안(예: `~/eve`)에 clone 하세요.
+- macOS: 기본 터미널에서 그대로 실행하면 됩니다.
+
+**3) 실행**
+
+```bash
+cp .env.example .env
+# .env 에서 COMPOSE_FILE=... 줄의 주석(#)을 풀면 이후 명령에 -f 를 붙이지 않아도 됩니다.
+./scripts/gen-jwt.sh
+docker compose -f docker-compose.yml -f docker-compose.desktop.yml up -d
+docker compose ps
+```
+
+**4) 디스크 사용량 보기**: 데이터가 `./data`가 아니라 볼륨에 있으므로 `du` 대신 아래를 쓰세요. `check.sh`는 자동으로 이쪽을 씁니다.
+
+```bash
+docker system df -v | grep -- -data          # 볼륨별 크기
+docker exec node-exporter df -h /host        # Docker VM 디스크 여유
+```
+
+**5) P2P 포트**: 가정용 공유기 뒤의 PC라면 외부에서 들어오는 연결은 기본적으로 막혀 있습니다. 나가는 연결만으로도 동기화는 됩니다. 피어를 늘리고 싶으면 공유기 포트포워딩(30303, 9000, 9001)과 Windows 방화벽 허용을 추가하세요.
+
+**6) 정리**: `docker compose down -v`로 볼륨까지 지우면 수백 GB가 비워집니다. Windows는 그 뒤에도 가상 디스크 파일이 줄어들지 않을 수 있으니, Docker Desktop의 Troubleshoot 메뉴나 공식 문서의 디스크 정리 방법을 확인하세요.
 
 ---
 
@@ -191,7 +237,7 @@ curl -s localhost:5052/eth/v1/node/health -o /dev/null -w '%{http_code}\n'  # 20
 
 ```bash
 docker stats --no-stream            # 컨테이너별 CPU/메모리
-du -sh data/*                       # 클라이언트별 디스크 사용량
+du -sh data/*                       # 클라이언트별 디스크 사용량 (Docker Desktop: docker system df -v | grep -- -data)
 df -h .                             # 파일시스템 여유
 iostat -x 5                         # 디스크 대기(%util, await). sysstat 패키지 필요
 free -h
@@ -263,4 +309,5 @@ docker exec prometheus wget -qO- http://lighthouse:5054/metrics | grep -E '^(lib
 ```bash
 docker compose down
 sudo rm -rf data/            # 수백 GB가 비워집니다. 기록용 스크린샷을 먼저 챙기세요.
+# Docker Desktop 이면 대신: docker compose down -v
 ```

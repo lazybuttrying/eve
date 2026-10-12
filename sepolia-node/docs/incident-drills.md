@@ -103,6 +103,8 @@ docker compose up -d geth lighthouse
 date '+%F %T' >> disk-log.txt; du -s --block-size=1G data/* >> disk-log.txt; df -h . >> disk-log.txt
 ```
 
+Docker Desktop이면 `du` 대신 `docker system df -v | grep -- -data >> disk-log.txt`를 쓰세요.
+
 Grafana의 "디스크 남은 용량 + 3일 뒤 예측" 패널과 비교해 보고, 지금 속도면 디스크가 언제 가득 차는지 계산해 기록하세요.
 
 ### 3-B. 알림이 실제로 울리는지 확인
@@ -116,7 +118,7 @@ docker compose restart prometheus
 git checkout prometheus/alerts.yml && docker compose restart prometheus
 ```
 
-방법 2 (실제로 채워 보기, 주의): 남은 공간이 충분할 때만, 사용률이 80%를 살짝 넘을 만큼만 큰 파일을 만듭니다.
+방법 2 (실제로 채워 보기, 주의, Docker Desktop에서는 생략 권장): 남은 공간이 충분할 때만, 사용률이 80%를 살짝 넘을 만큼만 큰 파일을 만듭니다.
 
 ```bash
 df -B1G . | tail -1                       # 크기(Size)와 사용(Used) 확인 → 80% 넘기려면 몇 GB가 필요한지 계산

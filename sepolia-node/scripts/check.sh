@@ -38,5 +38,12 @@ try: print('  피어 수:  ', json.load(sys.stdin)['data']['connected'])
 except Exception: print('  피어 수: 응답 없음')"
 
 echo "[디스크]"
-du -sh ./data/* 2>/dev/null | sed 's/^/  /'
-df -h . | tail -1 | awk '{print "  파일시스템 사용률: "$5" (남은 용량 "$4")"}'
+if [ -d ./data/geth ]; then
+  du -sh ./data/* 2>/dev/null | sed 's/^/  /'
+  df -h . | tail -1 | awk '{print "  파일시스템 사용률: "$5" (남은 용량 "$4")"}'
+else
+  # Docker Desktop 처럼 Docker 볼륨에 저장한 경우: 볼륨 크기와 Docker VM 디스크 여유를 봅니다.
+  docker system df -v 2>/dev/null | grep -E -- '-data ' | awk '{print "  "$1": "$NF}'
+  docker exec node-exporter df -h /host 2>/dev/null | tail -1 \
+    | awk '{print "  Docker VM 디스크 사용률: "$5" (남은 용량 "$4")"}'
+fi

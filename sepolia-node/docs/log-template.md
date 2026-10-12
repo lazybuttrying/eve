@@ -11,7 +11,8 @@
 
 | 항목 | 값 |
 |---|---|
-| 기기 종류 | WSL2 / 집 서버 / 클라우드 VM (사양: ) |
+| 기기 종류 | Docker Desktop(Windows/macOS) / WSL2 / 집 서버 / 클라우드 VM (사양: ) |
+| Docker Desktop 자원 설정 | Memory, CPUs, Disk limit (Docker Desktop일 때) |
 | OS, 커널 | `uname -a` 결과 |
 | CPU / 메모리 | `nproc`, `free -h` |
 | 디스크 | 종류(SSD/NVMe), 전체 용량, 시작 시 여유 공간 |
