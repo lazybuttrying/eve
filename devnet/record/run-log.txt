@@ -1,0 +1,34 @@
+[2026-10-12 09:43:57] === 0. 환경
+Linux 6.18.44-fc-v114
+Docker 29.8.2
+Docker Compose version v5.6.0
+4
+               total        used        free      shared  buff/cache   available
+Mem:            15Gi       731Mi        12Gi        14Mi       2.8Gi        15Gi
+/dev/vda        252G   13G   27G  33% /
+[2026-10-12 09:43:57] === 1. 초기화 후 기동
+[2026-10-12 09:44:07] up 완료 (10s)
+[2026-10-12 09:44:41] 첫 블록 (up 후 44s)
+[2026-10-12 09:44:41] 노드2 첫 블록 (up 후 44s)
+devnet-enr-fetch-1: Exited (0) 34 seconds ago
+devnet-genesis-1: Exited (0) 40 seconds ago
+devnet-geth-init-1: Exited (0) 39 seconds ago
+devnet-geth2-init-1: Exited (0) 39 seconds ago
+devnet-keys-1: Exited (0) 41 seconds ago
+geth: Up 39 seconds
+geth2: Up 38 seconds
+grafana: Up 42 seconds
+lighthouse: Up 39 seconds
+lighthouse2: Up 34 seconds
+node-exporter: Up 42 seconds
+prometheus: Up 42 seconds
+validator: Up 38 seconds
+    Geth
+    Version: 1.17.8-stable
+    Lighthouse v8.2.3-6db6ae9
+    EL:8545 block=1 peers=1 syncing=False
+    EL:8546 block=1 peers=1 syncing=False
+    CL:5052 {"data":{"is_syncing":false,"is_optimistic":false,"el_offline":false,"head_slot":"1","sync_distance":"0"}} peers={"data":{"connected":"1","connecting":"0","disconnected":"0","disconnecting":"0"}}
+    CL:5053 {"data":{"is_syncing":false,"is_optimistic":false,"el_offline":false,"head_slot":"1","sync_distance":"0"}} peers={"data":{"connected":"1","connecting":"0","disconnected":"0","disconnecting":"0"}}
+[2026-10-12 09:44:41] 디스크: data/geth=846MB data/geth2=846MB data/lighthouse=2MB data/lighthouse2=2MB data/prometheus=1MB data/grafana=2MB 
+[2026-10-12 09:44:41] 블록 확정(finality) 대기
