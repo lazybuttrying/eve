@@ -130,3 +130,17 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 [2026-10-12 10:41:43] 블록 279 디스크: data/geth=1129MB data/geth2=847MB data/lighthouse=233MB data/lighthouse2=181MB data/prometheus=27MB data/grafana=2MB 
 [2026-10-12 10:51:43] 블록 329 디스크: data/geth=1129MB data/geth2=847MB data/lighthouse=86MB data/lighthouse2=34MB data/prometheus=31MB data/grafana=2MB 
 [2026-10-12 11:01:43] 블록 379 디스크: data/geth=1129MB data/geth2=848MB data/lighthouse=133MB data/lighthouse2=81MB data/prometheus=34MB data/grafana=2MB 
+[2026-10-12 11:11:43] 블록 429 디스크: data/geth=1129MB data/geth2=848MB data/lighthouse=176MB data/lighthouse2=118MB data/prometheus=38MB data/grafana=2MB 
+[2026-10-12 11:21:43] 블록 479 디스크: data/geth=1130MB data/geth2=848MB data/lighthouse=220MB data/lighthouse2=155MB data/prometheus=46MB data/grafana=2MB 
+[2026-10-12 11:31:43] 블록 529 디스크: data/geth=1412MB data/geth2=1130MB data/lighthouse=159MB data/lighthouse2=38MB data/prometheus=50MB data/grafana=2MB 
+geth CPU=0.80% MEM=85.99MiB / 15.72GiB
+geth2 CPU=0.58% MEM=85.09MiB / 15.72GiB
+grafana CPU=0.11% MEM=50.77MiB / 15.72GiB
+lighthouse CPU=45.36% MEM=257.1MiB / 15.72GiB
+lighthouse2 CPU=44.88% MEM=282MiB / 15.72GiB
+node-exporter CPU=0.00% MEM=8.281MiB / 15.72GiB
+prometheus CPU=0.18% MEM=87.14MiB / 15.72GiB
+validator CPU=2.90% MEM=32.85MiB / 15.72GiB
+[2026-10-12 11:31:45] 확정: justified 15 finalized 14
+[2026-10-12 11:31:58] === 완료
+exit 0

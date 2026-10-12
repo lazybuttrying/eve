@@ -1,0 +1,271 @@
+<title>이더리움 노드 실습 기록</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* 레이아웃: 한 줄 본문 기둥(약 68자) + 결과 표와 사진만 넓게. 운영 일지(로그북) 느낌. */
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1b2230;
+  --muted: #5b6577;
+  --line: #dde1e8;
+  --accent: #2456c9;
+  --accent-soft: #e6edfb;
+  --ok: #1d7a4c;
+  --ok-soft: #e3f3ea;
+  --warn: #9a5b00;
+  --warn-soft: #fbf0dc;
+  --bad: #b3261e;
+  --bad-soft: #fbe5e3;
+  --code-bg: #eef1f5;
+  --font-body: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11151c; --surface: #181d26; --fg: #e4e8ef; --muted: #9aa4b5; --line: #2a313d;
+    --accent: #7ea2ff; --accent-soft: #1d2740;
+    --ok: #6ccf9a; --ok-soft: #15291f; --warn: #f0b85c; --warn-soft: #2d2414; --bad: #ff8a80; --bad-soft: #321a19;
+    --code-bg: #1f2530; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11151c; --surface: #181d26; --fg: #e4e8ef; --muted: #9aa4b5; --line: #2a313d;
+  --accent: #7ea2ff; --accent-soft: #1d2740;
+  --ok: #6ccf9a; --ok-soft: #15291f; --warn: #f0b85c; --warn-soft: #2d2414; --bad: #ff8a80; --bad-soft: #321a19;
+  --code-bg: #1f2530; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 16px; line-height: 1.75; margin: 0; }
+.wrap { max-width: 860px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 80px; display: flex; flex-direction: column; gap: 56px; }
+.col { max-width: 68ch; }
+h1, h2, h3 { text-wrap: balance; line-height: 1.35; margin: 0; }
+h1 { font-size: clamp(1.7rem, 4vw, 2.3rem); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.4rem; font-weight: 700; }
+h3 { font-size: 1.08rem; font-weight: 700; }
+p { margin: 0; }
+section { display: flex; flex-direction: column; gap: 18px; }
+.eyebrow { font-family: var(--font-mono); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.lede { font-size: 1.08rem; color: var(--muted); }
+header { display: flex; flex-direction: column; gap: 14px; }
+.meta { font-family: var(--font-mono); font-size: 0.82rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.note { background: var(--warn-soft); border: 1px solid var(--line); border-left: 4px solid var(--warn); padding: 16px 18px; border-radius: 6px; display: flex; flex-direction: column; gap: 6px; }
+.note strong { color: var(--warn); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.stat .v { font-family: var(--font-mono); font-size: 1.5rem; font-weight: 500; font-variant-numeric: tabular-nums; }
+.stat .k { font-size: 0.86rem; color: var(--muted); line-height: 1.5; }
+.parts { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+.part { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.part b { font-size: 0.98rem; }
+.part span { color: var(--muted); font-size: 0.92rem; line-height: 1.6; }
+.drill { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 22px; display: flex; flex-direction: column; gap: 18px; }
+.drill-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px; }
+.pill { font-family: var(--font-mono); font-size: 0.76rem; padding: 2px 10px; border-radius: 999px; white-space: nowrap; }
+.pill.ok { background: var(--ok-soft); color: var(--ok); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.bad { background: var(--bad-soft); color: var(--bad); }
+.steps { display: grid; grid-template-columns: 7.5em 1fr; gap: 10px 16px; margin: 0; }
+.steps dt { font-weight: 700; color: var(--muted); font-size: 0.92rem; padding-top: 2px; }
+.steps dd { margin: 0; min-width: 0; }
+@media (max-width: 560px) { .steps { grid-template-columns: 1fr; gap: 2px; } .steps dd { margin-bottom: 10px; } }
+.timeline { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border-left: 2px solid var(--line); }
+.timeline li { padding: 4px 0 10px 18px; position: relative; display: flex; flex-direction: column; gap: 2px; }
+.timeline li::before { content: ""; position: absolute; left: -6px; top: 12px; width: 10px; height: 10px; border-radius: 50%; background: var(--surface); border: 2px solid var(--accent); }
+.timeline li.bad::before { border-color: var(--bad); background: var(--bad); }
+.timeline li.ok::before { border-color: var(--ok); background: var(--ok); }
+.timeline .t { font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+code, .log { font-family: var(--font-mono); font-size: 0.86em; }
+code { background: var(--code-bg); padding: 1px 6px; border-radius: 4px; }
+.log { display: block; background: var(--code-bg); border-radius: 6px; padding: 12px 14px; overflow-x: auto; white-space: pre; line-height: 1.6; font-size: 0.8rem; }
+figure { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+figure img { border: 1px solid var(--line); border-radius: 6px; max-width: 100%; height: auto; display: block; background: #fff; }
+figcaption { font-size: 0.88rem; color: var(--muted); }
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-weight: 700; color: var(--muted); font-size: 0.84rem; white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td.n { font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fixes { display: flex; flex-direction: column; gap: 12px; counter-reset: fix; }
+.fix { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; display: flex; flex-direction: column; gap: 6px; }
+.fix p { color: var(--fg); }
+.fix .why { color: var(--muted); font-size: 0.93rem; }
+.gloss { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px 24px; margin: 0; }
+.gloss div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.gloss dt { font-weight: 700; }
+.gloss dd { margin: 0; color: var(--muted); font-size: 0.93rem; line-height: 1.6; }
+ol.plain { margin: 0; padding-left: 1.3em; display: flex; flex-direction: column; gap: 8px; }
+a { color: var(--accent); }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+footer { color: var(--muted); font-size: 0.86rem; border-top: 1px solid var(--line); padding-top: 18px; }
+</style>
+
+<div class="wrap">
+
+<header>
+  <span class="eyebrow">운영 실습 기록 · 2026-10-12</span>
+  <h1>이더리움 노드를 띄우고, 일부러 고장 내고, 알아채고, 되살린 기록</h1>
+  <p class="lede col">작은 연습용 이더리움 네트워크를 만들어 2시간(09:44~11:31) 동안 돌리면서, 고장 세 가지를 일부러 일으켰습니다. 감시 화면이 문제를 잡아내는지, 원인을 어떻게 찾는지, 다시 정상이 되기까지 얼마나 걸리는지 모두 실제로 재서 적었습니다.</p>
+  <div class="meta"><span>Geth v1.17.8</span><span>Lighthouse v8.2.3</span><span>Docker 29.8</span><span>4코어 · 메모리 15GB</span></div>
+</header>
+
+<div class="note col">
+  <p><strong>먼저 읽어 주세요</strong></p>
+  <p>이 실습은 Claude가 자기 작업 환경에서 대신 돌린 것입니다. 면접에서 "제가 직접 해 봤다"고 말씀하시면 안 됩니다. 공부 자료로 읽으시고, 같은 실습을 도연 님 PC에서 한 번 돌려 보시면 그때부터 도연 님 경험이 됩니다. 방법은 맨 아래에 있습니다.</p>
+</div>
+
+<section>
+  <span class="eyebrow">한눈에</span>
+  <h2>결과 요약</h2>
+  <div class="stats">
+    <div class="stat"><span class="v">44초</span><span class="k">켜고 나서 첫 블록이 만들어지기까지</span></div>
+    <div class="stat"><span class="v">2.8GB</span><span class="k">2시간 돌린 뒤 디스크 사용량 (진짜 테스트넷은 1TB 안팎)</span></div>
+    <div class="stat"><span class="v">3 / 3</span><span class="k">일부러 낸 고장을 감시 화면이 잡아낸 횟수</span></div>
+    <div class="stat"><span class="v">4건</span><span class="k">실습하다가 찾아서 고친 감시 설정의 허점</span></div>
+  </div>
+</section>
+
+<section>
+  <span class="eyebrow">구성</span>
+  <h2>무엇을 만들었나</h2>
+  <p class="col">진짜 이더리움과 같은 프로그램을 쓰되, 내 컴퓨터 안에서만 도는 작은 네트워크를 만들었습니다. 노드(이더리움에 참여하는 컴퓨터) 두 대를 흉내 냈습니다.</p>
+  <div class="parts">
+    <div class="part"><b>노드 1 · 블록을 만드는 쪽</b><span>Geth(거래 처리 담당)와 Lighthouse(어느 블록이 맞는지 정하는 담당)가 짝을 이룹니다. 검증자 64개가 12초마다 새 블록을 만듭니다.</span></div>
+    <div class="part"><b>노드 2 · 따라가는 쪽</b><span>블록을 만들지 않고 노드 1에서 받아 따라가기만 합니다. 연결이 끊겼다가 다시 붙는 연습에 씁니다.</span></div>
+    <div class="part"><b>감시 도구</b><span>Prometheus가 15초마다 상태 숫자를 모으고, Grafana가 그래프로 보여 줍니다. 문제가 생기면 알림이 울리도록 규칙 8개를 걸었습니다.</span></div>
+  </div>
+  <figure>
+    <img src="screenshots/07-dashboard-full-run.png" alt="2시간 전체 실습 동안의 Grafana 감시 화면: 블록 번호 528, 피어 수, 뒤처짐 그래프에 큰 봉우리 하나, 디스크와 메모리 그래프" loading="lazy">
+    <figcaption>2시간 실습 전체를 담은 감시 화면. 위쪽은 블록 번호와 연결된 상대(피어) 수, 가운데는 뒤처짐 정도, 아래는 디스크·메모리·CPU입니다. 가운데 오른쪽 그래프의 큰 봉우리(10:14~10:35)가 연습 2에서 노드 2를 끊었던 구간이고, 10:12쯤의 작은 튐이 연습 1의 강제 종료입니다.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <span class="eyebrow">고장 연습 1</span>
+  <div class="drill">
+    <div class="drill-head"><h3>프로그램을 갑자기 꺼 보기</h3><span class="pill bad">블록 6개 유실 후 복구</span></div>
+    <dl class="steps">
+      <dt>한 일</dt><dd>노드 1의 Geth를 두 번 껐습니다. 한 번은 정상 재시작(<code>restart</code>), 한 번은 전원을 뽑듯 강제 종료(<code>kill</code>)했습니다.</dd>
+      <dt>정상 재시작</dt><dd>3초 만에 다시 떴고 다음 블록이 바로 만들어졌습니다. 잃은 데이터는 없었습니다.</dd>
+      <dt>강제 종료</dt><dd>블록 생성이 통째로 멈췄습니다. 블록을 만들려면 Geth가 꼭 필요하기 때문입니다. 71초 뒤 "수집 대상 응답 없음(TargetDown)" 알림이 울렸습니다.</dd>
+      <dt>원인 확인</dt><dd>Lighthouse 기록에 "Geth에 연결할 수 없음"이 찍혔고, 상태 조회에서 <code>el_offline: true</code>(실행 프로그램 꺼짐)가 보였습니다.</dd>
+      <dt>되살린 뒤</dt><dd>Geth를 다시 켰더니 블록 135가 아니라 <b>129로 되돌아가 있었습니다</b>. 디스크에 미처 저장하지 못한 최근 블록 6개를 잃은 것입니다. 노드 2에게서 다시 받아 복구했고, 다시 켠 지 20초 뒤(끈 지 95초 뒤) 새 블록이 나왔습니다.</dd>
+      <dt>다음엔</dt><dd>프로그램은 반드시 정상 종료 절차로 끕니다. 종료할 때 기다려 주는 시간(<code>stop_grace_period</code>)을 설정에 둔 이유입니다. 그리고 잃은 데이터를 다시 받을 상대 노드가 있어야 빨리 복구됩니다.</dd>
+    </dl>
+    <code class="log">geth       | Loaded most recent local block   number=129 ... age=2m30s
+geth       | WARN Fetching the unknown forkchoice head from network
+lighthouse | ERROR Exec engine unable to produce payload
+             msg: "No payload ID, the engine is likely syncing. This has the potential to cause a missed block proposal."</code>
+    <figure>
+      <img src="screenshots/03-drill1-targetdown.png" alt="Prometheus 알림 화면에서 TargetDown 알림이 firing 상태로 빨갛게 표시됨" loading="lazy">
+      <figcaption>강제 종료 71초 뒤 울린 TargetDown 알림.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section>
+  <span class="eyebrow">고장 연습 2</span>
+  <div class="drill">
+    <div class="drill-head"><h3>노드끼리 연결 끊어 보기</h3><span class="pill warn">알림 하나가 21분 걸림</span></div>
+    <dl class="steps">
+      <dt>한 일</dt><dd>노드 2를 21분 동안 네트워크에서 떼어 냈습니다. 노드 2 안의 두 프로그램끼리는 계속 연결된 채, 바깥 상대와의 연결만 끊었습니다.</dd>
+      <dt>보인 증상</dt><dd>노드 2의 블록 번호가 141에서 멈췄고, 그사이 노드 1은 245까지 갔습니다. 노드 2는 104블록 뒤처졌습니다.</dd>
+      <dt>되살린 뒤</dt><dd>다시 연결하자 <b>12초 만에 104블록을 모두 따라잡았고</b>, 27초 뒤 알림이 모두 꺼졌습니다.</dd>
+    </dl>
+    <ol class="timeline">
+      <li class="bad"><span class="t">10:14:07 · 0분</span>노드 2 연결 끊음</li>
+      <li><span class="t">10:14:40 · 30초</span>"Geth 피어 부족" 이상 감지 (5분 넘게 계속되면 울리도록 대기)</li>
+      <li><span class="t">10:19:40 · 5분 30초</span>"Geth 피어 부족" 알림 울림</li>
+      <li><span class="t">10:21:10 · 7분</span>"뒤처짐(BeaconSlotLag)" 알림 울림</li>
+      <li><span class="t">10:24:10 · 10분</span>"블록 멈춤(GethHeadStalled)" 알림 울림</li>
+      <li class="bad"><span class="t">10:35:00 · 21분</span>"Lighthouse 피어 부족" 알림은 이때서야 울림 (16분이 지나서야 이상 감지)</li>
+      <li class="ok"><span class="t">10:35:17 · 21분</span>다시 연결 → 12초 뒤 따라잡음, 27초 뒤 알림 모두 해제</li>
+    </ol>
+    <dl class="steps">
+      <dt>늦은 이유</dt><dd>Lighthouse는 연결이 깔끔하게 끊긴 게 아니라 응답 없이 사라진 경우, 상대가 떠났다고 판단하기까지 시간이 걸립니다. 그동안 약 16분 동안 "피어 수" 숫자가 1로 남아 있었습니다. 따로 다시 시험했을 때는 30초 안에 0이 되었으니, 끊기는 방식에 따라 달라지는 것으로 보입니다(추정).</dd>
+      <dt>다음엔</dt><dd>숫자 하나만 믿지 않습니다. 이번에도 "Geth 피어 부족"(5분 30초)과 "뒤처짐"(7분) 알림이 훨씬 먼저 잡아냈습니다. 같은 문제를 여러 방향에서 보는 알림을 함께 걸어 두는 것이 중요합니다.</dd>
+    </dl>
+    <figure>
+      <img src="screenshots/05-drill2-dashboard.png" alt="연결이 끊긴 동안 노드 2의 뒤처짐 그래프가 계속 올라가는 Grafana 화면" loading="lazy">
+      <figcaption>끊겨 있는 동안의 감시 화면. 가운데 오른쪽 "현재 슬롯 - 헤드 슬롯" 그래프가 노드 2의 뒤처짐입니다.</figcaption>
+    </figure>
+    <figure>
+      <img src="screenshots/04-drill2-alerts.png" alt="Prometheus 알림 화면에서 피어 부족, 블록 멈춤, 뒤처짐 알림이 firing 상태" loading="lazy">
+      <figcaption>같은 시각의 알림 화면.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section>
+  <span class="eyebrow">고장 연습 3</span>
+  <div class="drill">
+    <div class="drill-head"><h3>디스크가 차는 상황 확인하기</h3><span class="pill ok">알림 정상 작동</span></div>
+    <dl class="steps">
+      <dt>한 일</dt><dd>디스크를 실제로 꽉 채우면 데이터가 망가질 수 있어서, "80% 넘으면 경고" 기준을 잠시 10%로 낮춰 알림이 정말 울리는지 확인했습니다. 그리고 1시간 동안 10분마다 사용량을 쟀습니다.</dd>
+      <dt>결과</dt><dd>기준을 낮춘 지 5분 12초 뒤 "디스크 사용률 높음" 알림이 울렸습니다(5분 이상 계속될 때만 울리게 해 두었기 때문). 기준을 원래대로 되돌리고 확인을 마쳤습니다.</dd>
+      <dt>헷갈렸던 점</dt><dd>Geth 폴더가 블록이 하나뿐인데도 846MB였습니다. 블록 데이터가 아니라 데이터베이스가 미리 잡아 둔 빈 공간이었습니다. 앞선 실습에서는 재시작 뒤 이 공간이 정리되면서 1MB로 "줄어드는" 것처럼 보이기도 했습니다.</dd>
+    </dl>
+    <div class="tablewrap"><table>
+      <thead><tr><th>시각</th><th>블록</th><th>Geth (노드1)</th><th>Geth (노드2)</th><th>Lighthouse (노드1)</th><th>Lighthouse (노드2)</th><th>감시 기록</th></tr></thead>
+      <tbody>
+        <tr><td class="n">09:44 (시작)</td><td class="n">1</td><td class="n">846MB</td><td class="n">846MB</td><td class="n">2MB</td><td class="n">2MB</td><td class="n">1MB</td></tr>
+        <tr><td class="n">10:41</td><td class="n">279</td><td class="n">1,129MB</td><td class="n">847MB</td><td class="n">233MB</td><td class="n">181MB</td><td class="n">27MB</td></tr>
+        <tr><td class="n">10:51</td><td class="n">329</td><td class="n">1,129MB</td><td class="n">847MB</td><td class="n">86MB</td><td class="n">34MB</td><td class="n">31MB</td></tr>
+        <tr><td class="n">11:01</td><td class="n">379</td><td class="n">1,129MB</td><td class="n">848MB</td><td class="n">133MB</td><td class="n">81MB</td><td class="n">34MB</td></tr>
+        <tr><td class="n">11:11</td><td class="n">429</td><td class="n">1,129MB</td><td class="n">848MB</td><td class="n">176MB</td><td class="n">118MB</td><td class="n">38MB</td></tr>
+        <tr><td class="n">11:21</td><td class="n">479</td><td class="n">1,130MB</td><td class="n">848MB</td><td class="n">220MB</td><td class="n">155MB</td><td class="n">46MB</td></tr>
+        <tr><td class="n">11:31</td><td class="n">529</td><td class="n">1,412MB</td><td class="n">1,130MB</td><td class="n">159MB</td><td class="n">38MB</td><td class="n">50MB</td></tr>
+      </tbody>
+    </table></div>
+    <p class="col">숫자가 고르게 늘지 않습니다. Geth는 한동안 그대로이다가 한 번에 약 282MB씩 뜁니다. 데이터베이스가 공간을 덩어리로 미리 잡아 두기 때문입니다. Lighthouse는 늘었다가 정리 작업 때 확 줄기를 반복합니다. 그래서 10분 간격 측정 몇 번으로 "하루에 얼마씩 는다"를 정하기는 어렵고, 며칠 동안 추세를 봐야 합니다. 2시간 동안 블록 529개를 만들고 전체 약 2.8GB를 썼습니다.</p>
+    <figure>
+      <img src="screenshots/06-drill3-disk-alert.png" alt="Prometheus 알림 화면에서 DiskUsageHigh 알림이 firing 상태" loading="lazy">
+      <figcaption>기준을 낮춘 뒤 울린 디스크 알림.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section>
+  <span class="eyebrow">찾아서 고친 것</span>
+  <h2>감시 설정의 허점 4가지</h2>
+  <p class="col">처음 만든 감시 설정은 그럴듯해 보였지만, 실제로 고장을 내 보니 허점이 드러났습니다. 공고에 나온 "모니터링으로 잡고, 원인을 찾아, 재발을 막는" 일이 바로 이런 것입니다.</p>
+  <div class="fixes">
+    <div class="fix"><h3>디스크 알림이 엉뚱한 곳을 보고 있었음</h3><p>디스크 위치 이름을 잘못 적어서 값이 비어 있었습니다. 디스크가 가득 차도 알림이 영영 안 울렸을 것입니다.</p><p class="why">고친 방법: 실제로 수집되는 위치 이름(<code>/</code>)으로 바꿈.</p></div>
+    <div class="fix"><h3>Lighthouse 피어 수가 늘 0으로 나옴</h3><p>상대가 연결돼 있는데도 감시용 숫자(<code>libp2p_peers</code>)는 0이었습니다. 직접 상태를 조회해 비교해서 찾았습니다.</p><p class="why">고친 방법: 제대로 움직이는 다른 숫자(<code>sync_peers_per_status</code>)로 바꿈.</p></div>
+    <div class="fix"><h3>피어가 0이 되면 숫자 자체가 사라짐</h3><p>바꾼 숫자는 피어가 0이 되면 "0"이 아니라 아예 없어졌습니다. "없음"은 "0보다 작음"이 아니라서 알림이 울리지 않았습니다. 연습 중 알림이 안 울리는 걸 보고 찾았습니다.</p><p class="why">고친 방법: 숫자가 없으면 0으로 채우도록 수식 보완.</p></div>
+    <div class="fix"><h3>강제 종료 뒤 그래프가 엉터리로 튐</h3><p>Geth가 블록 번호를 되감자, "5분간 블록 증가량" 그래프가 120으로 튀었습니다. 늘기만 하는 숫자에 쓰는 계산법을 줄 수도 있는 숫자에 썼기 때문입니다.</p><p class="why">고친 방법: 줄어드는 값도 맞게 계산하는 방식(<code>delta</code>)으로 변경.</p></div>
+  </div>
+</section>
+
+<section>
+  <span class="eyebrow">직접 해 보기</span>
+  <h2>도연 님 PC에서 돌려 보려면</h2>
+  <ol class="plain col">
+    <li>Docker Desktop을 설치하고 켭니다.</li>
+    <li>터미널에서 <code>git clone https://github.com/lazybuttrying/eve.git</code> 후 <code>git checkout claude/clever-clarke-96y0oe</code></li>
+    <li><code>cd eve/devnet</code> 후 <code>docker compose up -d</code></li>
+    <li>1분 뒤 브라우저에서 <code>http://localhost:3000</code> (아이디 admin, 비밀번호 change-me)을 열면 위와 같은 감시 화면이 나옵니다.</li>
+  </ol>
+  <p class="col">막히면 화면을 캡처해서 보내 주세요. 같이 원인을 찾아 드리겠습니다. 자세한 설명은 저장소의 <code>devnet/README.md</code>에 있습니다.</p>
+</section>
+
+<section>
+  <span class="eyebrow">용어</span>
+  <h2>낯선 말 풀이</h2>
+  <dl class="gloss">
+    <div><dt>노드</dt><dd>블록체인에 참여해 데이터를 주고받고 저장하는 컴퓨터(프로그램).</dd></div>
+    <div><dt>블록</dt><dd>거래 기록 묶음. 이 실습에서는 12초마다 하나씩 만들어집니다.</dd></div>
+    <div><dt>피어</dt><dd>내 노드와 연결된 다른 노드. 0이면 고립된 상태입니다.</dd></div>
+    <div><dt>Geth / Lighthouse</dt><dd>이더리움 노드를 이루는 두 프로그램. 거래 처리 담당과 합의(어느 블록이 맞는지) 담당입니다.</dd></div>
+    <div><dt>Prometheus / Grafana</dt><dd>상태 숫자를 모으는 도구와, 그 숫자를 그래프로 보여 주는 도구.</dd></div>
+    <div><dt>확정(finality)</dt><dd>블록이 더는 바뀌지 않는다고 확정되는 것. 이 실습에서는 켠 지 26분 뒤 처음 확정됐습니다.</dd></div>
+  </dl>
+</section>
+
+<footer>
+  원본 실행 기록: 저장소 <code>devnet/record/run-log.txt</code> · 설정 파일: <code>devnet/</code>, <code>sepolia-node/</code> · 모든 시각은 2026-10-12 UTC 기준입니다.
+</footer>
+
+</div>
