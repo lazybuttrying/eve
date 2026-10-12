@@ -42,3 +42,89 @@ node-exporter CPU=0.00% MEM=8.246MiB / 15.72GiB
 prometheus CPU=0.49% MEM=74.38MiB / 15.72GiB
 validator CPU=0.01% MEM=27.25MiB / 15.72GiB
 [2026-10-12 10:10:08] 디스크: data/geth=846MB data/geth2=846MB data/lighthouse=101MB data/lighthouse2=94MB data/prometheus=10MB data/grafana=2MB 
+[2026-10-12 10:10:26] === 2. 연습 1-A: geth 정상 재시작
+[2026-10-12 10:10:26] 재시작 직전 블록 129
+[2026-10-12 10:10:26] restart 명령 완료 (0s)
+[2026-10-12 10:10:29] 다음 블록 130 (재시작 후 3s), 노드2 130
+    geth  | INFO [10-12|10:10:27.024] Loaded most recent local block           number=129 hash=8b2535..058329 age=10s
+[2026-10-12 10:11:30] === 3. 연습 1-B: geth 강제 종료(docker kill)
+[2026-10-12 10:11:30] kill 직전 블록 135
+[2026-10-12 10:12:41] TargetDown(node1) Firing (kill 후 71s)
+[2026-10-12 10:12:41] geth 상태: exited / 노드2 블록 135
+    {"data":{"is_syncing":false,"is_optimistic":false,"el_offline":true,"head_slot":"135","sync_distance":"6"}}
+     TargetDown node1 firing since 10:11:40
+     GethLowPeers node2 pending since 10:11:40
+     DiskUsageHigh  firing since 09:44:25
+    lighthouse  | Oct 12 10:11:37.008 ERROR Proposer prepare routine failed               error: ExecutionForkChoiceUpdateFailed(EngineError(Api { error: HttpClient(url: http://geth:8551/, kind: request, 
+    lighthouse  | Oct 12 10:11:37.013 ERROR Error during execution engine upcheck         error: HttpClient(url: http://geth:8551/, kind: request, detail: client error (Connect))
+[2026-10-12 10:12:47] geth start
+[2026-10-12 10:13:05] kill 후 첫 새 블록 136 (start 후 20s, kill 후 95s)
+    geth  | INFO [10-12|10:10:27.024] Loaded most recent local block           number=129 hash=8b2535..058329 age=10s
+    geth  | INFO [10-12|10:12:47.388] Loaded most recent local block           number=133 hash=27a210..15b597 age=1m42s
+    geth  | INFO [10-12|10:12:47.389] Loaded most recent local block           number=129 hash=8b2535..058329 age=2m30s
+    geth  | WARN [10-12|10:12:49.005] Fetching the unknown forkchoice head from network hash=71ba65..3ead10
+    lighthouse  | Oct 12 10:12:53.009 ERROR Exec engine unable to produce payload         msg: "No payload ID, the engine is likely syncing. This has the potential to cause a missed block proposal.", stat
+[2026-10-12 10:13:06] TargetDown 해제
+    EL:8545 block=136 peers=1 syncing=False
+    EL:8546 block=136 peers=1 syncing=False
+    CL:5052 {"data":{"is_syncing":false,"is_optimistic":false,"el_offline":false,"head_slot":"143","sync_distance":"0"}} peers={"data":{"connected":"1","connecting":"0","disconnected":"0","disconnecting":"0"}}
+    CL:5053 {"data":{"is_syncing":false,"is_optimistic":false,"el_offline":false,"head_slot":"143","sync_distance":"0"}} peers={"data":{"connected":"1","connecting":"0","disconnected":"0","disconnecting":"0"}}
+[2026-10-12 10:14:06] === 4. 연습 2: 노드2 네트워크 단절
+    EL:8545 block=141 peers=1 syncing=False
+    EL:8546 block=141 peers=1 syncing=False
+    CL:5052 {"data":{"is_syncing":false,"is_optimistic":false,"el_offline":false,"head_slot":"148","sync_distance":"0"}} peers={"data":{"connected":"1","connecting":"0","disconnected":"0","disconnecting":"0"}}
+    CL:5053 {"data":{"is_syncing":false,"is_optimistic":false,"el_offline":false,"head_slot":"148","sync_distance":"0"}} peers={"data":{"connected":"1","connecting":"0","disconnected":"0","disconnecting":"0"}}
+[2026-10-12 10:14:07] 단절
+[2026-10-12 10:35:00] 피어 부족 알림 Firing (단절 후 1254s)
+     GethLowPeers node1 firing since 10:14:40
+     GethLowPeers node2 firing since 10:14:40
+     LighthouseLowPeers node2 firing since 10:29:55
+     LighthouseLowPeers node1 pending since 10:30:10
+     GethHeadStalled node2 firing since 10:19:10
+     BeaconSlotLag node2 firing since 10:16:10
+     DiskUsageHigh  firing since 09:44:25
+     DiskWillFillIn3Days  pending since 10:14:10
+    EL:8545 block=245 peers=0 syncing=False
+    EL:8546 block=141 peers=0 syncing=False
+    CL:5052 {"data":{"is_syncing":false,"is_optimistic":false,"el_offline":false,"head_slot":"252","sync_distance":"0"}} peers={"data":{"connected":"0","connecting":"0","disconnected":"1","disconnecting":"0"}}
+    CL:5053 {"data":{"is_syncing":true,"is_optimistic":false,"el_offline":false,"head_slot":"148","sync_distance":"104"}} peers={"data":{"connected":"0","connecting":"0","disconnected":"1","disconnecting":"0"}}
+    lighthouse2  | Oct 12 10:34:59.001 WARN  Low peer count                                peer_count: "0"
+    geth2  | WARN [10-12|10:34:50.312] DNS lookup of static node failed         id=a448f24c6d18e575 name=geth err="lookup geth on 127.0.0.11:53: no such host"
+[2026-10-12 10:35:17] 재연결
+[2026-10-12 10:35:19] CL 따라잡음 (2s)
+[2026-10-12 10:35:29] EL 따라잡음 (12s)
+[2026-10-12 10:35:44] 피어 알림 해제 (재연결 후 27s)
+    EL:8545 block=249 peers=1 syncing=False
+    EL:8546 block=249 peers=1 syncing=False
+    CL:5052 {"data":{"is_syncing":false,"is_optimistic":false,"el_offline":false,"head_slot":"256","sync_distance":"0"}} peers={"data":{"connected":"1","connecting":"0","disconnected":"0","disconnecting":"0"}}
+    CL:5053 {"data":{"is_syncing":false,"is_optimistic":false,"el_offline":false,"head_slot":"256","sync_distance":"0"}} peers={"data":{"connected":"1","connecting":"0","disconnected":"0","disconnecting":"0"}}
+[2026-10-12 10:35:45] === 5. 연습 3-B: 디스크 알림 실제 발생 확인 (기준값 임시로 낮춤)
+[2026-10-12 10:35:45] 현재 디스크 사용률 89.8% → 기준 80% 를 10% 로 낮춤
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import sys,json;print(sum(1 for a in json.load(sys.stdin)['data']['alerts'] if a['labels']['alertname']=='DiskUsageHigh' and a['labels'].get('node','')=='' and a['state']=='firing'))
+                                         ~~~~~~~~~^^^^^^^^^^^
+  File "/usr/lib/python3.13/json/__init__.py", line 298, in load
+    return loads(fp.read(),
+        cls=cls, object_hook=object_hook,
+        parse_float=parse_float, parse_int=parse_int,
+        parse_constant=parse_constant, object_pairs_hook=object_pairs_hook, **kw)
+  File "/usr/lib/python3.13/json/__init__.py", line 352, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/usr/lib/python3.13/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/json/decoder.py", line 363, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+/tmp/claude-0/fullrun.sh: line 75: [: : integer expression expected
+[2026-10-12 10:40:58] DiskUsageHigh Firing (312s)
+[2026-10-12 10:41:02] 기준 원복
+     LighthouseLowPeers node2 pending since 10:41:10
+     LighthouseLowPeers node1 pending since 10:41:10
+     BeaconSlotLag node2 pending since 10:41:10
+     DiskUsageHigh  pending since 10:41:10
+     DiskWillFillIn3Days  pending since 10:21:25
+[2026-10-12 10:41:42] === 6. 디스크 증가 추세 (10분 간격 6회)
+[2026-10-12 10:41:43] 블록 279 디스크: data/geth=1129MB data/geth2=847MB data/lighthouse=233MB data/lighthouse2=181MB data/prometheus=27MB data/grafana=2MB 
