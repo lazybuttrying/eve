@@ -32,3 +32,13 @@ validator: Up 38 seconds
     CL:5053 {"data":{"is_syncing":false,"is_optimistic":false,"el_offline":false,"head_slot":"1","sync_distance":"0"}} peers={"data":{"connected":"1","connecting":"0","disconnected":"0","disconnecting":"0"}}
 [2026-10-12 09:44:41] 디스크: data/geth=846MB data/geth2=846MB data/lighthouse=2MB data/lighthouse2=2MB data/prometheus=1MB data/grafana=2MB 
 [2026-10-12 09:44:41] 블록 확정(finality) 대기
+[2026-10-12 10:10:06] 첫 확정: justified 3 finalized 2 (up 후 1569s), 블록 128
+geth CPU=1.25% MEM=65.75MiB / 15.72GiB
+geth2 CPU=0.53% MEM=65.12MiB / 15.72GiB
+grafana CPU=0.07% MEM=48.97MiB / 15.72GiB
+lighthouse CPU=0.01% MEM=258MiB / 15.72GiB
+lighthouse2 CPU=0.01% MEM=260.9MiB / 15.72GiB
+node-exporter CPU=0.00% MEM=8.246MiB / 15.72GiB
+prometheus CPU=0.49% MEM=74.38MiB / 15.72GiB
+validator CPU=0.01% MEM=27.25MiB / 15.72GiB
+[2026-10-12 10:10:08] 디스크: data/geth=846MB data/geth2=846MB data/lighthouse=101MB data/lighthouse2=94MB data/prometheus=10MB data/grafana=2MB 
