@@ -107,6 +107,10 @@ JSON-RPC, Beacon API 호출, Grafana, Prometheus 사용법은 [Sepolia 가이드
 - Prometheus 수집 대상: http://localhost:9090/targets (geth 2개, lighthouse 2개, validator, node, prometheus 모두 UP)
 - 알림: http://localhost:9090/alerts
 
+장애 연습 1·2를 한 뒤의 실제 대시보드 (슬롯 지연 패널의 두 봉우리가 연습 2의 단절 구간):
+
+![devnet 대시보드](dashboard-devnet.png)
+
 devnet에서만 볼 만한 지표:
 
 | 지표 | 의미 |
